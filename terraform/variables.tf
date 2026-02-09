@@ -67,3 +67,12 @@ variable "workspace_volume_size_gb" {
   type        = number
   default     = 50
 }
+
+# ──────────────────────────────────────────────
+# Budget
+# ──────────────────────────────────────────────
+
+variable "budget_alert_email" {
+  description = "Email address to receive budget alert notifications"
+  type        = string
+}

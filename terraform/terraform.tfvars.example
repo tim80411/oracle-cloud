@@ -6,3 +6,5 @@ region         = "ap-singapore-1"
 ssh_public_key = "ssh-rsa AAAAB3... your-key"
 
 # workspace_volume_size_gb = 50  # Block volume for CP personal workspace
+
+budget_alert_email = "you@example.com"  # Budget alert notifications

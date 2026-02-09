@@ -30,8 +30,8 @@ Compute: 1 control plane (2 OCPU/12 GB, also schedulable) + 2 workers (1 OCPU/6 
 # Bootstrap (one-time): create tfstate bucket
 cd terraform/bootstrap && terraform init && terraform apply
 
-# Main infrastructure
-cd terraform && terraform init && terraform plan && terraform apply
+# Main infrastructure (tf-oci = AWS_PROFILE=oci terraform)
+cd terraform && tf-oci init && tf-oci plan && tf-oci apply
 
 # Validate config
 cd terraform && terraform validate
@@ -47,6 +47,14 @@ cd terraform && terraform fmt -check -recursive
 - **OCI idle reclaim risk:** Instances idle for 7 days (CPU/network/memory all <20%) may be reclaimed. The Block Volume on the control plane survives reclaim.
 - **Region:** ap-singapore-1. All Always Free resources must be in the home region.
 - **No hardcoded OCIDs or secrets in .tf files.** Use variables and `terraform.tfvars` (gitignored).
+- **Budget guard:** $1 USD/month budget with alerts on any actual or forecasted spend. Configured in `terraform/budget.tf`.
+
+## Credentials
+
+- **OCI API key:** `~/.ssh/oci_api_key.pem` (referenced by `~/.oci/config`)
+- **SSH key for VMs:** `~/.ssh/id_rsa_oracle_cloud` / `~/.ssh/id_rsa_oracle_cloud.pub`
+- **S3-compatible credentials (remote state):** `~/.aws/credentials` under `[oci]` profile
+- **Shell alias:** `tf-oci` = `AWS_PROFILE=oci terraform` (defined in `~/.zshrc`)
 
 ## Terraform Conventions
 
