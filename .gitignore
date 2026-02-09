@@ -1,7 +1,3 @@
-# Old reference config with hardcoded secrets
-main.tf
-main.tf.zip
-
 # Terraform
 *.tfstate
 *.tfstate.*
