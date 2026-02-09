@@ -31,7 +31,7 @@ variable "control_plane_ocpus" {
 variable "control_plane_memory_gb" {
   description = "Memory (GB) for K8s control plane node"
   type        = number
-  default     = 12
+  default     = 8
 }
 
 variable "worker_ocpus" {
@@ -43,7 +43,7 @@ variable "worker_ocpus" {
 variable "worker_memory_gb" {
   description = "Memory (GB) for each K8s worker node"
   type        = number
-  default     = 6
+  default     = 8
 }
 
 variable "worker_count" {
@@ -54,6 +54,16 @@ variable "worker_count" {
 
 variable "boot_volume_size_gb" {
   description = "Boot volume size in GB per instance"
+  type        = number
+  default     = 50
+}
+
+# ──────────────────────────────────────────────
+# Storage
+# ──────────────────────────────────────────────
+
+variable "workspace_volume_size_gb" {
+  description = "Block volume size in GB for control plane workspace"
   type        = number
   default     = 50
 }

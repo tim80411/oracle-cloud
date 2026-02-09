@@ -1,0 +1,25 @@
+#cloud-config
+# Control Plane cloud-init - Homebrew + dotfiles setup
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - build-essential
+  - curl
+  - git
+  - procps
+  - file
+  - zsh
+
+runcmd:
+  # Install Homebrew as the ubuntu user
+  - su - ubuntu -c 'NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
+  # Add Homebrew to PATH
+  - su - ubuntu -c 'echo "eval \"\$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)\"" >> ~/.bashrc'
+  - su - ubuntu -c 'echo "eval \"\$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)\"" >> ~/.profile'
+  # Run dotfiles install script (skipping chsh to avoid interactive prompt)
+  - su - ubuntu -c '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/tim80411/dotfiles/master/ubuntu/install.sh)"' || true
+  # Change default shell to zsh (non-interactive)
+  - usermod -s /bin/zsh ubuntu
+  - echo "cloud-init control-plane complete" > /tmp/cloud-init-done

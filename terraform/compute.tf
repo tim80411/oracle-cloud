@@ -1,5 +1,5 @@
 # ──────────────────────────────────────────────
-# K8s Control Plane (2 OCPU / 12 GB)
+# K8s Control Plane (2 OCPU / 8 GB)
 # ──────────────────────────────────────────────
 
 resource "oci_core_instance" "control_plane" {
@@ -28,6 +28,7 @@ resource "oci_core_instance" "control_plane" {
 
   metadata = {
     ssh_authorized_keys = var.ssh_public_key
+    user_data           = base64encode(file("${path.module}/cloud-init/control-plane.yaml"))
   }
 
   agent_config {
@@ -47,7 +48,7 @@ resource "oci_core_instance" "control_plane" {
 }
 
 # ──────────────────────────────────────────────
-# K8s Workers (1 OCPU / 6 GB each)
+# K8s Workers (1 OCPU / 8 GB each)
 # ──────────────────────────────────────────────
 
 resource "oci_core_instance" "worker" {
@@ -78,6 +79,7 @@ resource "oci_core_instance" "worker" {
 
   metadata = {
     ssh_authorized_keys = var.ssh_public_key
+    user_data           = base64encode(file("${path.module}/cloud-init/base.yaml"))
   }
 
   agent_config {

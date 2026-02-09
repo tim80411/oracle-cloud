@@ -1,6 +1,8 @@
 # Copy this file to terraform.tfvars and fill in your values
 # DO NOT commit terraform.tfvars to version control
 
-tenancy_ocid = "ocid1.tenancy.oc1..your-tenancy-ocid"
-region       = "ap-singapore-1"
+tenancy_ocid   = "ocid1.tenancy.oc1..your-tenancy-ocid"
+region         = "ap-singapore-1"
 ssh_public_key = "ssh-rsa AAAAB3... your-key"
+
+# workspace_volume_size_gb = 50  # Block volume for CP personal workspace

@@ -44,3 +44,12 @@ output "bastion_id" {
   description = "Bastion OCID (use to create SSH sessions via OCI Console or CLI)"
   value       = oci_bastion_bastion.k8s.id
 }
+
+# ──────────────────────────────────────────────
+# Storage
+# ──────────────────────────────────────────────
+
+output "workspace_volume_id" {
+  description = "Block Volume OCID for control plane workspace"
+  value       = oci_core_volume.workspace.id
+}
