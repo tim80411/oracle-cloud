@@ -186,6 +186,7 @@ terraform/cloud-init/
 scripts/
   setup.sh                              # Initial credential and config setup
 docs/
+  ai-setup-guide.md                     # Full setup guide for AI assistants
   layer2-manual-setup.md                # Step-by-step K8s setup guide
   layer2-installation-report.md         # Detailed installation report with K8s concepts
   troubleshooting.md                    # Common issues and solutions
@@ -221,6 +222,14 @@ See **[Troubleshooting Guide](docs/troubleshooting.md)** for detailed steps.
 | iptables blocking traffic | cloud-init should handle this; check `iptables -L INPUT -n` |
 | Ingress not listening on 80/443 | `init-control-plane.sh` patches hostNetwork automatically |
 | NLB Reserved IP binding lost | Taint-rebuild NLB (see NLB troubleshooting doc) |
+
+## For AI
+
+> LLM agents: fetch the setup guide and follow the instructions step by step.
+
+```bash
+curl -s https://raw.githubusercontent.com/tim80411/oracle-cloud/refs/heads/main/docs/ai-setup-guide.md
+```
 
 ## References
 
