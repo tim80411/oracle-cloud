@@ -11,7 +11,7 @@ Self-managed Kubernetes cluster on Oracle Cloud Infrastructure (OCI) using **onl
 3-layer deployment:
 - **Layer 1 (Terraform):** VCN, 3x ARM VMs (A1.Flex), NLB, Bastion, Block Volume, Object Storage — fully automated
 - **Layer 2 (cloud-init + scripts):** kubeadm K8s cluster, Flannel CNI, ingress-nginx, cert-manager, ArgoCD — cloud-init automates env prep, scripts automate K8s init
-- **Layer 3 (GitOps):** ArgoCD syncs application manifests from this repo — not yet implemented
+- **Layer 3 (GitOps):** ArgoCD App-of-Apps syncs from private `k8s-apps` repo via SSH deploy key
 
 Compute: 1 control plane (2 OCPU/12 GB, also schedulable) + 2 workers (1 OCPU/6 GB each) = 4 OCPU/24 GB total (Always Free limit).
 
