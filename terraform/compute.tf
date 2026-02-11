@@ -24,11 +24,12 @@ resource "oci_core_instance" "control_plane" {
     display_name     = "control-plane-vnic"
     assign_public_ip = true
     hostname_label   = "cp"
+    private_ip       = "10.0.0.3"
   }
 
   metadata = {
     ssh_authorized_keys = var.ssh_public_key
-    user_data           = base64encode(file("${path.module}/cloud-init/control-plane.yaml"))
+    user_data           = base64encode(file("${path.module}/cloud-init/k8s-control-plane.yaml"))
   }
 
   agent_config {
@@ -79,7 +80,7 @@ resource "oci_core_instance" "worker" {
 
   metadata = {
     ssh_authorized_keys = var.ssh_public_key
-    user_data           = base64encode(file("${path.module}/cloud-init/base.yaml"))
+    user_data           = base64encode(file("${path.module}/cloud-init/k8s-base.yaml"))
   }
 
   agent_config {

@@ -1,0 +1,331 @@
+#cloud-config
+# ──────────────────────────────────────────────────────────────────────────────
+# K8s Control Plane cloud-init - Extends k8s-base with CP-specific setup
+# ──────────────────────────────────────────────────────────────────────────────
+# This cloud-init prepares an OCI Ubuntu instance as Kubernetes Control Plane:
+# 1. All k8s-base setup (iptables, containerd, kubeadm)
+# 2. Adds init-control-plane.sh script for manual cluster initialization
+# 3. Installs Homebrew and dotfiles for development convenience
+#
+# After cloud-init completes, manually run:
+#   /home/ubuntu/init-control-plane.sh
+# ──────────────────────────────────────────────────────────────────────────────
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - apt-transport-https
+  - ca-certificates
+  - curl
+  - gnupg
+  - iptables-persistent
+  - socat
+  - conntrack
+  # Control Plane specific
+  - zsh
+  - build-essential
+  - git
+  - procps
+  - file
+
+write_files:
+  # ── Kernel modules for container networking ──
+  - path: /etc/modules-load.d/k8s.conf
+    content: |
+      overlay
+      br_netfilter
+
+  # ── Sysctl settings for Kubernetes networking ──
+  - path: /etc/sysctl.d/k8s.conf
+    content: |
+      # Enable IP forwarding (required for Pod networking)
+      net.ipv4.ip_forward = 1
+      # Enable bridge-nf-call for iptables to see bridged traffic
+      net.bridge.bridge-nf-call-iptables = 1
+      net.bridge.bridge-nf-call-ip6tables = 1
+
+  # ── Helper script: Initialize Control Plane ──
+  # defer: true ensures ubuntu user exists before writing
+  - path: /home/ubuntu/init-control-plane.sh
+    permissions: '0755'
+    owner: ubuntu:ubuntu
+    defer: true
+    content: |
+      #!/bin/bash
+      set -e
+
+      # Helper function: wait for pods with progress output (prevents SSH timeout)
+      # Returns 1 on timeout (will cause script to exit due to set -e)
+      wait_for_pods() {
+        local label=$1
+        local namespace=$2
+        local timeout=${3:-300}
+        local elapsed=0
+        echo -n "Waiting for pods ($label) in $namespace"
+        while ! kubectl wait --for=condition=Ready pods -l "$label" -n "$namespace" --timeout=5s 2>/dev/null; do
+          echo -n "."
+          elapsed=$((elapsed + 5))
+          if [ $elapsed -ge $timeout ]; then
+            echo " TIMEOUT!"
+            return 1
+          fi
+        done
+        echo " Ready!"
+      }
+
+      # Helper function: wait for pods but only warn on timeout (non-blocking)
+      # Used for intermediate waits where we can continue and verify later
+      wait_for_pods_warn() {
+        local label=$1
+        local namespace=$2
+        local timeout=${3:-120}
+        local elapsed=0
+        echo -n "Waiting for pods ($label) in $namespace"
+        while ! kubectl wait --for=condition=Ready pods -l "$label" -n "$namespace" --timeout=5s 2>/dev/null; do
+          echo -n "."
+          elapsed=$((elapsed + 5))
+          if [ $elapsed -ge $timeout ]; then
+            echo " (timeout, will verify later)"
+            return 0  # Don't fail, continue with script
+          fi
+        done
+        echo " Ready!"
+      }
+
+      # Get node IP dynamically
+      NODE_IP=$(hostname -I | awk '{print $1}')
+
+      echo "=== Initializing Kubernetes Control Plane ==="
+      echo "Node IP: $NODE_IP"
+      echo ""
+
+      # Initialize cluster
+      sudo kubeadm init \
+        --pod-network-cidr=10.244.0.0/16 \
+        --apiserver-advertise-address=$NODE_IP \
+        --ignore-preflight-errors=SystemVerification
+
+      echo ""
+      echo "=== Setting up kubeconfig ==="
+      mkdir -p $HOME/.kube
+      sudo cp /etc/kubernetes/admin.conf $HOME/.kube/config
+      sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+      echo ""
+      echo "=== Installing Flannel CNI ==="
+      kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
+
+      echo ""
+      echo "=== Removing control-plane taint (allow scheduling pods) ==="
+      kubectl taint nodes --all node-role.kubernetes.io/control-plane- || true
+
+      echo ""
+      echo "=== Generating worker join command ==="
+      kubeadm token create --print-join-command > $HOME/worker-join-command.txt
+      echo "Saved to: $HOME/worker-join-command.txt"
+      cat $HOME/worker-join-command.txt
+
+      echo ""
+      echo "=== Waiting for CoreDNS ==="
+      wait_for_pods_warn "k8s-app=kube-dns" "kube-system" 120
+
+      echo ""
+      echo "=== Installing ingress-nginx ==="
+      kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.12.0/deploy/static/provider/baremetal/deploy.yaml
+      # Patch to use hostNetwork so NLB can reach ingress controller directly on port 80/443
+      kubectl patch deployment ingress-nginx-controller -n ingress-nginx \
+        --type=json -p='[{"op": "add", "path": "/spec/template/spec/hostNetwork", "value": true}]'
+
+      echo ""
+      echo "=== Installing cert-manager ==="
+      kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.19.3/cert-manager.yaml
+      echo ""
+      wait_for_pods_warn "app.kubernetes.io/instance=cert-manager" "cert-manager" 120
+
+      echo ""
+      echo "=== Creating Let's Encrypt ClusterIssuer ==="
+      kubectl apply -f - <<ISSUER
+      apiVersion: cert-manager.io/v1
+      kind: ClusterIssuer
+      metadata:
+        name: letsencrypt-prod
+      spec:
+        acme:
+          server: https://acme-v02.api.letsencrypt.org/directory
+          email: <YOUR_EMAIL>
+          privateKeySecretRef:
+            name: letsencrypt-prod-key
+          solvers:
+          - http01:
+              ingress:
+                class: nginx
+      ISSUER
+
+      echo ""
+      echo "=== Installing ArgoCD ==="
+      kubectl create namespace argocd || true
+      # Use server-side apply to handle large CRD annotations (applicationsets.argoproj.io)
+      kubectl apply -n argocd --server-side=true -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+      echo ""
+      wait_for_pods_warn "app.kubernetes.io/name=argocd-server" "argocd" 120
+
+      ARGOCD_PASS=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d)
+      echo "ArgoCD initial admin password: $ARGOCD_PASS"
+      echo "$ARGOCD_PASS" > $HOME/argocd-admin-password.txt
+      echo "Saved to: $HOME/argocd-admin-password.txt"
+
+      echo ""
+      echo "=== Final Verification: Waiting for all critical pods ==="
+      echo "This ensures all components are fully ready before completing."
+      echo ""
+
+      echo "Verifying CoreDNS..."
+      wait_for_pods "k8s-app=kube-dns" "kube-system" 300
+
+      echo "Verifying ingress-nginx..."
+      wait_for_pods "app.kubernetes.io/component=controller" "ingress-nginx" 300
+
+      echo "Verifying cert-manager..."
+      wait_for_pods "app.kubernetes.io/instance=cert-manager" "cert-manager" 300
+
+      echo "Verifying ArgoCD..."
+      wait_for_pods "app.kubernetes.io/name=argocd-server" "argocd" 300
+
+      echo ""
+      echo "=== Control Plane initialization complete! ==="
+      echo ""
+      echo "Next steps:"
+      echo "1. On worker nodes, run: ./join-cluster.sh"
+      echo "2. Verify: kubectl get nodes && kubectl get pods -A"
+      echo "3. Configure DNS A record to NLB IP"
+
+  # ── Helper script: Setup ArgoCD Ingress with TLS ──
+  # Separated from init because domain is a user choice.
+  # Usage: ./setup-argocd-ingress.sh <domain>
+  - path: /home/ubuntu/setup-argocd-ingress.sh
+    permissions: '0755'
+    owner: ubuntu:ubuntu
+    defer: true
+    content: |
+      #!/bin/bash
+      set -euo pipefail
+
+      # Setup ArgoCD Ingress with TLS via cert-manager
+      # Prerequisites:
+      #   1. DNS A record pointing your domain to the NLB IP
+      #   2. ingress-nginx controller running
+      #   3. cert-manager + letsencrypt-prod ClusterIssuer ready
+      #
+      # Usage: ./setup-argocd-ingress.sh <domain>
+      # Example: ./setup-argocd-ingress.sh argo.teachers-assist.com
+
+      DOMAIN="${1:-}"
+
+      if [ -z "$DOMAIN" ]; then
+        echo "Usage: $0 <domain>"
+        echo "Example: $0 argo.teachers-assist.com"
+        exit 1
+      fi
+
+      echo "=== Configuring ArgoCD for domain: $DOMAIN ==="
+
+      # Disable ArgoCD built-in TLS so ingress-nginx handles termination
+      echo "Patching argocd-server to disable built-in TLS..."
+      kubectl patch deployment argocd-server -n argocd --type='json' \
+        -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--insecure"}]' \
+        2>/dev/null || echo "Already patched or patch skipped"
+
+      echo "Waiting for argocd-server to be ready..."
+      kubectl rollout status deployment/argocd-server -n argocd --timeout=120s
+
+      # Create Ingress resource
+      echo "Creating Ingress for $DOMAIN..."
+      kubectl apply -f - <<EOF
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: argocd-server
+        namespace: argocd
+        annotations:
+          cert-manager.io/cluster-issuer: letsencrypt-prod
+      spec:
+        ingressClassName: nginx
+        tls:
+        - hosts:
+          - ${DOMAIN}
+          secretName: argocd-server-tls
+        rules:
+        - host: ${DOMAIN}
+          http:
+            paths:
+            - path: /
+              pathType: Prefix
+              backend:
+                service:
+                  name: argocd-server
+                  port:
+                    number: 80
+      EOF
+
+      echo ""
+      echo "=== Done ==="
+      echo "Ingress created for https://${DOMAIN}"
+      echo ""
+      echo "Checklist:"
+      echo "  1. Ensure DNS A record: ${DOMAIN} -> <NLB_IP>"
+      echo "  2. Wait ~1-2 min for cert-manager to issue TLS certificate"
+      echo "  3. Check certificate: kubectl get certificate -n argocd"
+      echo "  4. Access: https://${DOMAIN}"
+      echo "  5. Login: admin / $(cat ~/argocd-admin-password.txt 2>/dev/null || echo '<check ~/argocd-admin-password.txt>')"
+
+runcmd:
+  # ── iptables: Fix OCI Ubuntu default firewall rules ──
+  # OCI Ubuntu has REJECT at position 5 in INPUT chain. Insert our rules before it.
+  - iptables -I INPUT 5 -s 10.0.0.0/24 -j ACCEPT
+  - iptables -I INPUT 5 -s 10.244.0.0/16 -j ACCEPT
+  - iptables -D FORWARD -j REJECT --reject-with icmp-host-prohibited || true
+  # Allow HTTP/HTTPS from any source (for NLB with preserve-source + direct access)
+  - iptables -I INPUT 5 -p tcp --dport 80 -j ACCEPT
+  - iptables -I INPUT 5 -p tcp --dport 443 -j ACCEPT
+  - netfilter-persistent save
+
+  # ── Load kernel modules ──
+  - modprobe overlay
+  - modprobe br_netfilter
+  - sysctl --system
+
+  # ── Install containerd ──
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+  - echo "deb [arch=arm64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
+  - apt-get update
+  - apt-get install -y containerd.io
+  - mkdir -p /etc/containerd
+  - containerd config default > /etc/containerd/config.toml
+  - sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
+  - systemctl restart containerd
+  - systemctl enable containerd
+
+  # ── Install kubeadm, kubelet, kubectl ──
+  - curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.32/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+  - echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.32/deb/ /" > /etc/apt/sources.list.d/kubernetes.list
+  - apt-get update
+  - apt-get install -y kubelet kubeadm kubectl
+  - apt-mark hold kubelet kubeadm kubectl
+  - systemctl enable kubelet
+
+  # ── Install Homebrew (for development convenience) ──
+  - su - ubuntu -c 'NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
+  - su - ubuntu -c 'echo "eval \"\$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)\"" >> ~/.bashrc'
+  - su - ubuntu -c 'echo "eval \"\$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)\"" >> ~/.profile'
+
+  # ── Install dotfiles (your personal config) ──
+  - su - ubuntu -c '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/tim80411/dotfiles/master/ubuntu/install.sh)"' || true
+  - usermod -s /bin/zsh ubuntu
+
+  - echo "cloud-init k8s-control-plane complete" > /tmp/cloud-init-done
+  - echo ""
+  - echo "=============================================="
+  - echo "K8s Control Plane setup complete!"
+  - 'echo "Next step: Run /home/ubuntu/init-control-plane.sh"'
+  - echo "=============================================="

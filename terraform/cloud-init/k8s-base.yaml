@@ -1,0 +1,128 @@
+#cloud-config
+# ──────────────────────────────────────────────────────────────────────────────
+# K8s Base cloud-init - System preparation for all Kubernetes nodes
+# ──────────────────────────────────────────────────────────────────────────────
+# This cloud-init prepares an OCI Ubuntu instance for Kubernetes:
+# 1. Fixes OCI default iptables rules that block K8s networking
+# 2. Configures kernel modules and sysctl for container networking
+# 3. Installs containerd runtime
+# 4. Installs kubeadm, kubelet, kubectl
+#
+# After cloud-init completes, manually run:
+# - Control Plane: /home/ubuntu/init-control-plane.sh
+# - Worker: sudo kubeadm join ... (get command from control plane)
+# ──────────────────────────────────────────────────────────────────────────────
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - apt-transport-https
+  - ca-certificates
+  - curl
+  - gnupg
+  - iptables-persistent
+  - socat
+  - conntrack
+
+write_files:
+  # ── Kernel modules for container networking ──
+  - path: /etc/modules-load.d/k8s.conf
+    content: |
+      overlay
+      br_netfilter
+
+  # ── Sysctl settings for Kubernetes networking ──
+  - path: /etc/sysctl.d/k8s.conf
+    content: |
+      # Enable IP forwarding (required for Pod networking)
+      net.ipv4.ip_forward = 1
+      # Enable bridge-nf-call for iptables to see bridged traffic
+      net.bridge.bridge-nf-call-iptables = 1
+      net.bridge.bridge-nf-call-ip6tables = 1
+
+  # ── Helper script: Join cluster as worker ──
+  # defer: true ensures ubuntu user exists before writing
+  - path: /home/ubuntu/join-cluster.sh
+    permissions: '0755'
+    owner: ubuntu:ubuntu
+    defer: true
+    content: |
+      #!/bin/bash
+      # Join this node to the Kubernetes cluster
+      #
+      # Usage: ./join-cluster.sh <kubeadm-join-args...>
+      #
+      # Get the join command from the control plane first:
+      #   sudo kubeadm token create --print-join-command
+      #
+      # Example:
+      #   ./join-cluster.sh kubeadm join 10.0.0.3:6443 --token xxx --discovery-token-ca-cert-hash sha256:yyy
+
+      set -e
+
+      if [ $# -eq 0 ]; then
+        echo "Usage: $0 <kubeadm-join-args...>"
+        echo ""
+        echo "Get the join command from CP first:"
+        echo "  sudo kubeadm token create --print-join-command"
+        echo ""
+        echo "Example:"
+        echo "  $0 kubeadm join 10.0.0.3:6443 --token xxx --discovery-token-ca-cert-hash sha256:yyy"
+        exit 1
+      fi
+
+      echo "=== Joining Kubernetes cluster ==="
+      echo "Command: $@"
+      echo ""
+      sudo "$@" --ignore-preflight-errors=SystemVerification
+      echo "=== Done! Check with: kubectl get nodes (on control plane) ==="
+
+runcmd:
+  # ── iptables: Fix OCI Ubuntu default firewall rules ──
+  # OCI Ubuntu images have default iptables REJECT rules that block:
+  # 1. INPUT: all traffic except SSH (port 22) - REJECT at position 5
+  # 2. FORWARD: all forwarded traffic (breaks Pod networking)
+  #
+  # Kubernetes requires:
+  # - Node-to-node communication (API server 6443, kubelet 10250, etcd 2379-2380)
+  # - Pod-to-node communication (CNI overlay, DNS)
+  # - Packet forwarding between nodes (Flannel VXLAN on UDP 8472)
+  - iptables -I INPUT 5 -s 10.0.0.0/24 -j ACCEPT
+  - iptables -I INPUT 5 -s 10.244.0.0/16 -j ACCEPT
+  - iptables -D FORWARD -j REJECT --reject-with icmp-host-prohibited || true
+  - netfilter-persistent save
+
+  # ── Load kernel modules ──
+  - modprobe overlay
+  - modprobe br_netfilter
+  - sysctl --system
+
+  # ── Install containerd ──
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+  - echo "deb [arch=arm64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
+  - apt-get update
+  - apt-get install -y containerd.io
+  - mkdir -p /etc/containerd
+  - containerd config default > /etc/containerd/config.toml
+  # Enable systemd cgroup driver (required for K8s 1.22+)
+  - sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
+  - systemctl restart containerd
+  - systemctl enable containerd
+
+  # ── Install kubeadm, kubelet, kubectl ──
+  - curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.32/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+  - echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.32/deb/ /" > /etc/apt/sources.list.d/kubernetes.list
+  - apt-get update
+  - apt-get install -y kubelet kubeadm kubectl
+  - apt-mark hold kubelet kubeadm kubectl
+  - systemctl enable kubelet
+
+  - echo "cloud-init k8s-base complete" > /tmp/cloud-init-done
+  - echo ""
+  - echo "=============================================="
+  - echo "K8s base setup complete!"
+  - 'echo "Next steps:"'
+  - 'echo "  Control Plane: Run /home/ubuntu/init-control-plane.sh"'
+  - 'echo "  Worker: Run /home/ubuntu/join-cluster.sh <control-plane-ip>"'
+  - echo "=============================================="

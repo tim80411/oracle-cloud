@@ -4,7 +4,15 @@
       "WebSearch",
       "mcp__plugin_context7_context7__resolve-library-id",
       "mcp__plugin_context7_context7__query-docs",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git -C /Users/tim80411/self/oracle-cloud log --oneline -10)",
+      "Bash(git -C /Users/tim80411/self/oracle-cloud diff --stat)",
+      "Bash(terraform fmt:*)",
+      "Bash(terraform validate:*)",
+      "Bash(AWS_PROFILE=oci terraform state:*)",
+      "Bash(AWS_PROFILE=oci terraform taint:*)",
+      "Bash(AWS_PROFILE=oci terraform plan:*)"
     ]
-  }
+  },
+  "outputStyle": "Learning"
 }
