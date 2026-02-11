@@ -11,7 +11,8 @@
       "Bash(terraform validate:*)",
       "Bash(AWS_PROFILE=oci terraform state:*)",
       "Bash(AWS_PROFILE=oci terraform taint:*)",
-      "Bash(AWS_PROFILE=oci terraform plan:*)"
+      "Bash(AWS_PROFILE=oci terraform plan:*)",
+      "Bash(git status:*)"
     ]
   },
   "outputStyle": "Learning"

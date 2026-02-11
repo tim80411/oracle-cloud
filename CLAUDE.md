@@ -81,6 +81,40 @@ cd terraform && terraform fmt -check -recursive
 - **SSH host keys change** on VM rebuild. Run `ssh-keygen -R <old-ip>` before reconnecting.
 - **cloud-init takes ~10-15 minutes.** Check completion: `ssh ubuntu@<ip> 'cat /tmp/cloud-init-done'`.
 
+## NLB Diagnostic Procedure
+
+**When to run:** After `terraform apply`, or whenever `curl http://<NLB-IP>` fails unexpectedly.
+
+**Automated check:**
+```bash
+./scripts/check-nlb.sh          # check only
+./scripts/check-nlb.sh --fix    # check + show remediation commands
+```
+
+**Manual equivalent (if CLI tools unavailable):**
+```bash
+# 1. TCP connectivity
+curl --max-time 5 http://<NLB_IP>:80
+
+# 2. Reserved IP binding (the silent failure — Terraform won't catch this)
+oci network public-ip get --public-ip-id <RESERVED_IP_OCID> | jq '.data["assigned-entity-id"]'
+# If null → IP is unbound, NLB traffic won't route
+
+# 3. Backend health
+oci nlb backend-set-health get \
+  --backend-set-name k8s-ingress-backend-set \
+  --network-load-balancer-id <NLB_OCID> | jq '.data.status'
+```
+
+**Fix (if Reserved IP is unbound or NLB unreachable):**
+```bash
+cd terraform
+tf-oci taint oci_network_load_balancer_network_load_balancer.k8s
+tf-oci taint oci_network_load_balancer_backend.control_plane_http
+tf-oci taint oci_network_load_balancer_backend.control_plane_https
+tf-oci plan && tf-oci apply
+```
+
 ## init-control-plane.sh Execution Notes
 
 - **`error: no matching resources found` at script start is harmless.** Caused by oh-my-zsh kubectl plugin trying to access cluster before kubeconfig is set. The error appears before the script runs but doesn't affect execution.

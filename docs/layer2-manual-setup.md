@@ -245,9 +245,13 @@ brew install argocd
 
 Point your domain to the NLB Reserved IP:
 
-```
-A record: your-domain.com -> <NLB_PUBLIC_IP>
-A record: *.your-domain.com -> <NLB_PUBLIC_IP>
+```bash
+# Get the NLB public IP from Terraform
+cd terraform && AWS_PROFILE=oci terraform output nlb_public_ip
+
+# Then set DNS A records pointing to that IP:
+# A record: your-domain.com -> <NLB-IP>
+# A record: *.your-domain.com -> <NLB-IP>
 ```
 
 ---
