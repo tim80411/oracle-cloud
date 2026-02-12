@@ -1,6 +1,6 @@
 # Layer 3 GitOps 設定操作記錄（流水帳）
 
-> 原始操作記錄，保留踩坑過程和實際指令輸出。整理版見 `layer3-setup-log.md`。
+> 原始操作記錄，保留踩坑過程和實際指令輸出。整理版見 `../../guides/logging/layer3-setup-log.md`。
 
 ## Step 1: 建立 k8s-apps private repo
 

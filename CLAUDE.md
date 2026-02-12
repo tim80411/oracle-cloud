@@ -43,8 +43,13 @@ Then manually run scripts:
 - `terraform/cloud-init/k8s-control-plane.yaml` — Control Plane cloud-init (iptables, containerd, kubeadm, Homebrew, dotfiles, init script)
 - `terraform/cloud-init/k8s-base.yaml` — Worker node cloud-init (iptables, containerd, kubeadm, join script)
 - `scripts/` — Utility scripts (not deployed by cloud-init)
-- `docs/` — Architecture requirements, troubleshooting, and Always Free resource reference
-- `docs/plans/` — Design documents
+- `docs/` — Documentation organized by reader intent:
+  - `docs/ai-setup-guide.md` — External-facing setup guide (has inbound links, do not move)
+  - `docs/guides/` — "I want to do" — setup flow summaries + detailed logging
+  - `docs/learning/` — "I want to learn" — deep technical explanations + raw operation logs
+  - `docs/reference/` — "I want to look up" — quick reference tables, Always Free quotas, requirements
+  - `docs/troubleshooting/` — "Something broke" — symptom→fix lookup + detailed diagnostic guides
+  - `docs/decisions/` — "Why was it done this way" — architecture design documents
 - `main.tf` — Legacy OCI-exported config (gitignored, not used)
 
 ## Commands
@@ -65,7 +70,7 @@ cd terraform && terraform fmt -check -recursive
 
 ## Key Constraints
 
-- **Always Free limits are hard ceilings.** 4 ARM OCPU, 24 GB RAM, 200 GB block storage, 1 NLB, 20 GB object storage. Check `docs/always-free-resources.md` before adding resources.
+- **Always Free limits are hard ceilings.** 4 ARM OCPU, 24 GB RAM, 200 GB block storage, 1 NLB, 20 GB object storage. Check `docs/reference/always-free-resources.md` before adding resources.
 - **Storage budget is fully utilized:** 3x50 GB boot volumes + 1x50 GB block volume = 200 GB.
 - **OCI idle reclaim risk:** Instances idle for 7 days (CPU/network/memory all <20%) may be reclaimed. The Block Volume on the control plane survives reclaim.
 - **Region:** ap-singapore-1. All Always Free resources must be in the home region.
@@ -77,7 +82,7 @@ cd terraform && terraform fmt -check -recursive
 ## VM Rebuild Notes
 
 - **OCI metadata change = VM force replace.** Editing cloud-init content triggers VM destruction/recreation. Use `terraform taint` for intentional rebuilds.
-- **NLB Reserved IP may lose binding** after infrastructure changes. Verify with `curl http://<NLB-IP>`. Fix by taint-rebuilding NLB only (see `docs/2026-02-10-nlb-troubleshooting.md`).
+- **NLB Reserved IP may lose binding** after infrastructure changes. Verify with `curl http://<NLB-IP>`. Fix by taint-rebuilding NLB only (see `docs/troubleshooting/logging/2026-02-10-nlb-troubleshooting.md`).
 - **SSH host keys change** on VM rebuild. Run `ssh-keygen -R <old-ip>` before reconnecting. Also update `~/.ssh/config` HostName entries (`oci-cp`, `oci-worker-1`, `oci-worker-2`) with new public IPs from `terraform output`.
 - **cloud-init takes ~10-15 minutes.** Check completion: `ssh ubuntu@<ip> 'cat /tmp/cloud-init-done'`.
 
