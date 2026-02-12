@@ -78,7 +78,7 @@ cd terraform && terraform fmt -check -recursive
 
 - **OCI metadata change = VM force replace.** Editing cloud-init content triggers VM destruction/recreation. Use `terraform taint` for intentional rebuilds.
 - **NLB Reserved IP may lose binding** after infrastructure changes. Verify with `curl http://<NLB-IP>`. Fix by taint-rebuilding NLB only (see `docs/2026-02-10-nlb-troubleshooting.md`).
-- **SSH host keys change** on VM rebuild. Run `ssh-keygen -R <old-ip>` before reconnecting.
+- **SSH host keys change** on VM rebuild. Run `ssh-keygen -R <old-ip>` before reconnecting. Also update `~/.ssh/config` HostName entries (`oci-cp`, `oci-worker-1`, `oci-worker-2`) with new public IPs from `terraform output`.
 - **cloud-init takes ~10-15 minutes.** Check completion: `ssh ubuntu@<ip> 'cat /tmp/cloud-init-done'`.
 
 ## NLB Diagnostic Procedure

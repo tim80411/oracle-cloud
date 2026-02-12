@@ -11,18 +11,18 @@ gh repo create k8s-apps --private --description "Private Kubernetes application 
 
 clone 到了 `oracle-cloud/` 裡面（不理想，因為會變成 repo 套 repo），手動移出來：
 ```bash
-mv oracle-cloud/k8s-apps /Users/tim80411/self/k8s-apps
+mv oracle-cloud/k8s-apps /Users/<USER>/self/k8s-apps
 ```
 
 建立基本結構：
 ```bash
-cd /Users/tim80411/self/k8s-apps
+cd /Users/<USER>/self/k8s-apps
 mkdir -p apps/
 # 加了 README.md 和 apps/.gitkeep
 git add -A && git commit -m "Initial repo structure" && git push -u origin main
 ```
 
-結果：https://github.com/tim80411/k8s-apps (private)
+結果：https://github.com/<USER>/k8s-apps (private)
 
 結構：
 ```
@@ -88,10 +88,10 @@ key 存放位置：`/home/ubuntu/.ssh/argocd-deploy-key`（控制平面上）
 ## Step 3: 加到 GitHub Deploy Keys
 
 ```bash
-gh repo deploy-key add - --repo tim80411/k8s-apps --title "argocd-deploy-key" <<< "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOeT9l+8gWFpwyV3ow3X43V9XoaDagbnKPDU+uG1T6DH argocd-deploy-key"
+gh repo deploy-key add - --repo <USER>/k8s-apps --title "argocd-deploy-key" <<< "ssh-ed25519 <PUBLIC_KEY_CONTENT> argocd-deploy-key"
 
 # 驗證
-gh repo deploy-key list --repo tim80411/k8s-apps
+gh repo deploy-key list --repo <USER>/k8s-apps
 # 142687196  argocd-deploy-key  read-only  ssh-ed25519 ...  2026-02-11T09:18:49Z
 ```
 
@@ -139,7 +139,7 @@ metadata:
     argocd.argoproj.io/secret-type: repository
 stringData:
   type: git
-  url: git@github.com:tim80411/k8s-apps.git
+  url: git@github.com:<USER>/k8s-apps.git
   sshPrivateKey: |
 $(sed 's/^/    /' ~/.ssh/argocd-deploy-key)
 YAML
@@ -152,10 +152,10 @@ REMOTE_SCRIPT
 驗證：
 ```bash
 ssh oci-cp 'kubectl get secret k8s-apps-repo -n argocd -o jsonpath="{.data.sshPrivateKey}" | base64 -d | head -1'
-# -----BEGIN OPENSSH PRIVATE KEY-----
+# -----BEGIN OPENSSH PRIVATE KEY----- (verified key exists, content redacted)
 
 ssh oci-cp 'kubectl get secret k8s-apps-repo -n argocd -o jsonpath="{.data.url}" | base64 -d'
-# git@github.com:tim80411/k8s-apps.git
+# git@github.com:<USER>/k8s-apps.git
 
 # GitHub SSH host key 已在 ArgoCD known hosts 中（ArgoCD 預設包含）
 ssh oci-cp 'kubectl get configmap argocd-ssh-known-hosts-cm -n argocd -o jsonpath="{.data.ssh_known_hosts}" | grep github.com | head -1'
@@ -190,7 +190,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: git@github.com:tim80411/k8s-apps.git
+    repoURL: git@github.com:<USER>/k8s-apps.git
     targetRevision: main
     path: apps/echo-server
   destination:

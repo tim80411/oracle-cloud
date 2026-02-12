@@ -92,7 +92,7 @@ REMOTE_SCRIPT
 驗證：
 ```bash
 ssh oci-cp 'kubectl get secret k8s-apps-repo -n argocd -o jsonpath="{.data.sshPrivateKey}" | base64 -d | head -1'
-# -----BEGIN OPENSSH PRIVATE KEY-----
+# -----BEGIN OPENSSH PRIVATE KEY----- (verified key exists, content redacted)
 ```
 
 ## Step 5: 部署測試應用 + Ingress
