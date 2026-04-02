@@ -68,6 +68,11 @@ output "loki_bucket_name" {
   value       = oci_objectstorage_bucket.loki.name
 }
 
+output "claude_code_jsonl_bucket_name" {
+  description = "Claude Code JSONL Object Storage bucket name"
+  value       = oci_objectstorage_bucket.claude_code_jsonl.name
+}
+
 # ──────────────────────────────────────────────
 # MySQL
 # ──────────────────────────────────────────────

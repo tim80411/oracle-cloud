@@ -12,3 +12,14 @@ resource "oci_objectstorage_bucket" "loki" {
   name           = "loki-chunks"
   access_type    = "NoPublicAccess"
 }
+
+# ──────────────────────────────────────────────
+# Monitoring – Claude Code JSONL Storage
+# ──────────────────────────────────────────────
+
+resource "oci_objectstorage_bucket" "claude_code_jsonl" {
+  compartment_id = local.compartment_id
+  namespace      = data.oci_objectstorage_namespace.ns.namespace
+  name           = "claude-code-jsonl"
+  access_type    = "NoPublicAccess"
+}
