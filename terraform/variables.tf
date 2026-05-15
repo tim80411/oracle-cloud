@@ -76,3 +76,13 @@ variable "budget_alert_email" {
   description = "Email address to receive budget alert notifications"
   type        = string
 }
+
+# ──────────────────────────────────────────────
+# MySQL
+# ──────────────────────────────────────────────
+
+variable "mysql_admin_password" {
+  description = "Admin password for MySQL HeatWave DB System"
+  type        = string
+  sensitive   = true
+}

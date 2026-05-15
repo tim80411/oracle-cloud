@@ -51,3 +51,29 @@ resource "oci_core_subnet" "public" {
   prohibit_public_ip_on_vnic = false
   prohibit_internet_ingress  = false
 }
+
+# ──────────────────────────────────────────────
+# Route Table (private — no internet gateway)
+# ──────────────────────────────────────────────
+
+resource "oci_core_route_table" "private" {
+  compartment_id = local.compartment_id
+  vcn_id         = oci_core_vcn.k8s.id
+  display_name   = "private-route-table"
+}
+
+# ──────────────────────────────────────────────
+# Private Subnet (MySQL)
+# ──────────────────────────────────────────────
+
+resource "oci_core_subnet" "private" {
+  compartment_id             = local.compartment_id
+  vcn_id                     = oci_core_vcn.k8s.id
+  cidr_block                 = local.private_subnet_cidr
+  display_name               = "mysql-subnet"
+  dns_label                  = "mysql"
+  route_table_id             = oci_core_route_table.private.id
+  security_list_ids          = [oci_core_security_list.mysql.id]
+  prohibit_public_ip_on_vnic = true
+  prohibit_internet_ingress  = true
+}

@@ -63,3 +63,33 @@ resource "oci_core_security_list" "k8s" {
     stateless        = false
   }
 }
+
+# ──────────────────────────────────────────────
+# Security List (MySQL — private subnet)
+# ──────────────────────────────────────────────
+
+resource "oci_core_security_list" "mysql" {
+  compartment_id = local.compartment_id
+  vcn_id         = oci_core_vcn.k8s.id
+  display_name   = "mysql-security-list"
+
+  # Allow MySQL from VCN (K8s nodes + bastion)
+  ingress_security_rules {
+    protocol    = "6" # TCP
+    source      = local.vcn_cidr
+    source_type = "CIDR_BLOCK"
+    stateless   = false
+    tcp_options {
+      min = 3306
+      max = 3306
+    }
+  }
+
+  # Allow all outbound to VCN
+  egress_security_rules {
+    protocol         = "all"
+    destination      = local.vcn_cidr
+    destination_type = "CIDR_BLOCK"
+    stateless        = false
+  }
+}
