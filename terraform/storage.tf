@@ -9,7 +9,6 @@ resource "oci_core_volume" "workspace" {
   size_in_gbs         = var.workspace_volume_size_gb
   vpus_per_gb         = 0
 
-  # Protect from accidental deletion when VM is rebuilt
   lifecycle {
     prevent_destroy = true
   }

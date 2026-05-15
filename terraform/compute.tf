@@ -22,7 +22,7 @@ resource "oci_core_instance" "control_plane" {
   create_vnic_details {
     subnet_id        = oci_core_subnet.public.id
     display_name     = "control-plane-vnic"
-    assign_public_ip = true
+    assign_public_ip = false
     hostname_label   = "cp"
     private_ip       = "10.0.0.3"
   }
@@ -46,6 +46,10 @@ resource "oci_core_instance" "control_plane" {
   }
 
   is_pv_encryption_in_transit_enabled = true
+
+  lifecycle {
+    ignore_changes = [source_details[0].source_id, metadata]
+  }
 }
 
 # ──────────────────────────────────────────────
@@ -97,4 +101,8 @@ resource "oci_core_instance" "worker" {
   }
 
   is_pv_encryption_in_transit_enabled = true
+
+  lifecycle {
+    ignore_changes = [source_details[0].source_id, metadata]
+  }
 }

@@ -12,3 +12,17 @@ data "oci_core_images" "ubuntu_arm" {
 data "oci_identity_availability_domains" "ads" {
   compartment_id = var.tenancy_ocid
 }
+
+# Control plane VNIC (for reserved IP assignment)
+data "oci_core_vnic_attachments" "control_plane" {
+  compartment_id = local.compartment_id
+  instance_id    = oci_core_instance.control_plane.id
+}
+
+data "oci_core_vnic" "control_plane" {
+  vnic_id = data.oci_core_vnic_attachments.control_plane.vnic_attachments[0].vnic_id
+}
+
+data "oci_core_private_ips" "control_plane" {
+  vnic_id = data.oci_core_vnic.control_plane.id
+}
