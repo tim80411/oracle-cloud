@@ -36,3 +36,9 @@ ArgoCD App-of-Apps pattern，從 private `k8s-apps` repo 自動同步。
 5. 之後新增 app：`apps/<name>/` 放 manifests + `argocd/<name>.yaml` 放 Application → `git push`
 
 **完整操作紀錄：** [logging/layer3-setup-log.md](logging/layer3-setup-log.md)
+
+## Identity & SSO
+
+PocketID (self-hosted OIDC) → OCI Console SSO，使用者首次登入會自動 JIT-provision 進 `PocketID-Users` 群組。
+
+**完整操作紀錄：** [pocketid-oci-sso.md](pocketid-oci-sso.md)
