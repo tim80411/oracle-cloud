@@ -74,6 +74,32 @@ output "claude_code_jsonl_bucket_name" {
 }
 
 # ──────────────────────────────────────────────
+# Backups
+# ──────────────────────────────────────────────
+
+output "k8up_bucket_name" {
+  description = "k8up backups Object Storage bucket name"
+  value       = oci_objectstorage_bucket.k8up_backups.name
+}
+
+output "k8up_s3_endpoint" {
+  description = "S3-compatible endpoint URL for k8up backups"
+  value       = "https://${data.oci_objectstorage_namespace.ns.namespace}.compat.objectstorage.${var.region}.oraclecloud.com"
+}
+
+output "k8up_s3_access_key_id" {
+  description = "S3-compat access key ID for k8up. Retrieve with: terraform output -raw k8up_s3_access_key_id"
+  value       = oci_identity_customer_secret_key.k8up.id
+  sensitive   = true
+}
+
+output "k8up_s3_secret_key" {
+  description = "S3-compat secret key for k8up. Only retrievable at create time. Retrieve with: terraform output -raw k8up_s3_secret_key"
+  value       = oci_identity_customer_secret_key.k8up.key
+  sensitive   = true
+}
+
+# ──────────────────────────────────────────────
 # MySQL
 # ──────────────────────────────────────────────
 

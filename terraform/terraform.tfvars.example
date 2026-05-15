@@ -2,6 +2,7 @@
 # DO NOT commit terraform.tfvars to version control
 
 tenancy_ocid   = "ocid1.tenancy.oc1..your-tenancy-ocid"
+user_ocid      = "ocid1.user.oc1..your-user-ocid"
 region         = "ap-singapore-1"
 ssh_public_key = "ssh-rsa AAAAB3... your-key"
 
@@ -11,3 +12,6 @@ budget_alert_email = "you@example.com"  # Budget alert notifications
 
 # MySQL
 mysql_admin_password = "YourStrongPassword123!"
+
+# Backups (k8up)
+k8up_backup_user_email = "you+k8up-backup@example.com"

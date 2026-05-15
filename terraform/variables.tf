@@ -7,6 +7,11 @@ variable "tenancy_ocid" {
   type        = string
 }
 
+variable "user_ocid" {
+  description = "OCID of the IAM user that owns S3-compat Customer Secret Keys (e.g. for k8up backups)"
+  type        = string
+}
+
 variable "region" {
   description = "OCI home region"
   type        = string
@@ -85,4 +90,13 @@ variable "mysql_admin_password" {
   description = "Admin password for MySQL HeatWave DB System"
   type        = string
   sensitive   = true
+}
+
+# ──────────────────────────────────────────────
+# Backups (k8up)
+# ──────────────────────────────────────────────
+
+variable "k8up_backup_user_email" {
+  description = "Email address attached to the dedicated k8up service IAM user"
+  type        = string
 }
