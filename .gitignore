@@ -8,3 +8,10 @@ terraform.tfvars
 
 # Logs
 *.log
+
+# K8s learning session markers (runtime)
+.k8s-learning-session
+.k8s-learning-logged
+
+# macOS
+.DS_Store

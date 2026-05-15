@@ -2,6 +2,9 @@
 
 深入理解本專案用到的技術概念。適合想知道「為什麼這樣做」和「背後原理是什麼」的讀者。
 
+> **學習方法論已整合至 skill**: 完整的 5-phase 學習流程請參考 `.claude-plugin/skills/k8s-learning.md`。
+> 說「繼續階段 N」即可啟動自動研究 + 學習流程。
+
 ## Recommended Reading Order
 
 ### 1. K8s 安裝與網路基礎
@@ -37,3 +40,7 @@ Terraform (IaC)
             ├─ cert-manager (TLS, ACME, Let's Encrypt)
             └─ ArgoCD (GitOps, App-of-Apps pattern)
 ```
+
+## 結構化學習階段
+
+階段檔案位於 `.claude-plugin/references/`，詳見 [學習計畫快速索引](k8s-learning-plan.md)。

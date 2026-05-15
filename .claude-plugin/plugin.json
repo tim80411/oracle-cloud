@@ -1,0 +1,22 @@
+{
+  "name": "k8s-learning",
+  "version": "0.1.0",
+  "description": "Orchestrates structured K8s learning sessions through project infrastructure exploration",
+  "skills": [
+    "skills/k8s-learning.md"
+  ],
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/organize-log.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
